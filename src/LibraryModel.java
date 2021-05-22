@@ -127,6 +127,7 @@ public class LibraryModel {
     return sb.toString();
   }
 
+  //TODO
   public String showLoanedBooks() {
     return "Show Loaned Books Stub";
   }
@@ -214,7 +215,16 @@ public class LibraryModel {
     return sb.toString();
   }
 
+
+  //TODO
   public String showCustomer(int customerID) {
+
+    //unsure if this is correct. No books have been loaned yet to check.
+    String lookup = "SELECT c.customerid, c.l_name, c.f_name, c.city, cd.count " +
+                    "FROM customer AS c, (SELECT count(customerid) AS count " +
+                                         "FROM cust_book AS cb) AS cd;";
+
+
     return "Show Customer Stub";
   }
 
@@ -245,26 +255,35 @@ public class LibraryModel {
     return sb.toString();
   }
 
+  //TODO
   public String borrowBook(int isbn, int customerID,
                            int day, int month, int year) {
+
+    //update the book's quantity
+    //update the customers isbn and add due date
+
+
+
+
     return "Borrow Book Stub";
   }
 
+  //TODO
   public String returnBook(int isbn, int customerid) {
     return "Return Book Stub";
   }
-
+  //TODO
   public void closeDBConnection() {
   }
-
+  //TODO
   public String deleteCus(int customerID) {
     return "Delete Customer";
   }
-
+  //TODO
   public String deleteAuthor(int authorID) {
     return "Delete Author";
   }
-
+  //TODO
   public String deleteBook(int isbn) {
     return "Delete Book";
   }
