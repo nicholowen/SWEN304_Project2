@@ -132,25 +132,57 @@ public class LibraryModel {
   }
 
   public String showAuthor(int authorID) {
-    String lookup = "SELECT * FROM Author ORDER BY AuthorID;";
+    String lookup = "SELECT a.AuthorID, a.Surname, a.Name, b.ISBN, b.Title " +
+                    "FROM Author AS a " +
+                    "LEFT JOIN Book_Author AS ba ON a.AuthorID = ba.AuthorID " +
+                    "LEFT JOIN Book AS b ON ba.ISBN = b.ISBN " +
+                    "WHERE a.AuthorID = " + authorID + ";";
 
-    StringBuilder sb = new StringBuilder();
-    sb.append("Show All Authors:\n");
+
     Statement stmt = null;
+    ArrayList<String> books = new ArrayList<>();
+
+    int author_id = 0;
+    String name = null;
+    String surname = null;
+    int isbn = 0;
+    String title = null;
+
+    int count = 0;
 
     try {
       stmt = conn.createStatement();
       ResultSet rs = stmt.executeQuery(lookup);
 
       while (rs.next()){
-        sb.append("\t");
-        sb.append(rs.getInt("AuthorID")).append(": ");
-        sb.append(rs.getString("Surname").trim()).append(", ");
-        sb.append(rs.getString("Name").trim()).append("\n");
+        author_id = rs.getInt("AuthorID");
+        if (rs.getString("Surname") != null) surname = rs.getString("Surname").trim();
+        if (rs.getString("Name") != null) name = rs.getString("Name").trim();
+        if (rs.getInt("ISBN") != 0) isbn = rs.getInt("ISBN");
+        if (rs.getString("Title") != null) title = rs.getString("Title").trim();
+        if(title != null) books.add(isbn + " - " + title);
+        count++;
       }
 
     } catch (SQLException throwables) {
       throwables.printStackTrace();
+    }
+
+    StringBuilder sb = new StringBuilder();
+    sb.append("Show Author:\n");
+    sb.append("\t");
+    if(count == 0) sb.append("No such Author ID: ").append(authorID);
+    else {
+      sb.append(author_id).append(" - ");
+      sb.append(name).append(" ").append(surname).append("\n");
+      if (books.isEmpty()) sb.append("\t").append("(no books written)");
+      else{
+        sb.append("\tBooks Written:\n");
+        for (int i = 0; i < books.size(); i++) {
+          sb.append("\t\t").append(books.get(i));
+          if(i < books.size() -1) sb.append("\n");
+        }
+      }
     }
 
     return sb.toString();
