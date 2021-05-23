@@ -1,5 +1,6 @@
 import javax.swing.*;
 import java.sql.*;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -255,25 +256,78 @@ public class LibraryModel {
     return sb.toString();
   }
 
-  //TODO
-  public String borrowBook(int isbn, int customerID,
-                           int day, int month, int year) {
+  /** TODO - protect the book table from going below 0 (will throw an error anyway, but avoid).
+   *  Also need to create popup to confirm (i.e. lock)
+   */
+  public String borrowBook(int isbn, int customerID, int day, int month, int year) {
 
     //update the book's quantity
     //update the customers isbn and add due date
 
+    StringBuilder sb = new StringBuilder();
+
+    String insert = "INSERT INTO cust_book(isbn, duedate, customerid) " +
+                    "VALUES (?, ?, ?);";
+    String update = "UPDATE book SET numleft = numleft - 1 " +
+                    "WHERE isbn = " + isbn + ";";
+    String bookQuery = "Select * FROM book WHERE isbn = " + isbn + ";";
+    String custQuery = "Select * FROM customer WHERE customerid = " + customerID + ";";
+
+    String bookTitle = "";
+    String custName = "";
+
+    try {
+
+      PreparedStatement pInsert = conn.prepareStatement(insert);
+
+      pInsert.setInt(1, isbn);
+      pInsert.setDate(2, java.sql.Date.valueOf(year + "-" + month + "-" + day));
+      pInsert.setInt(3, customerID);
+
+      Statement stmt = conn.createStatement();
+      ResultSet rs1 = stmt.executeQuery(bookQuery);
+      while(rs1.next()){
+        bookTitle = rs1.getString("title").trim();
+      }
+      ResultSet rs2 = stmt.executeQuery(custQuery);
+      while(rs2.next()){
+        custName = rs2.getString("f_name").trim() + " " + rs2.getString("l_name").trim();
+      }
+
+      conn.setAutoCommit(false);
+      pInsert.executeUpdate();
+      stmt.executeUpdate(update);
+
+      conn.commit();
+
+    } catch (SQLException throwables) {
+      throwables.printStackTrace();
+    }
 
 
+    sb.append("Borrow Book\n");
+    sb.append("\tBook: ").append(isbn).append(" (").append(bookTitle).append(")\n");
+    sb.append("\tLoaned to: ").append(customerID).append(" (").append(custName).append(")\n");
+    sb.append("\tDue Date: ").append(day + " " + month + " " + year);
 
-    return "Borrow Book Stub";
+    return sb.toString();
   }
 
   //TODO
   public String returnBook(int isbn, int customerid) {
+
+
     return "Return Book Stub";
   }
   //TODO
   public void closeDBConnection() {
+    try {
+      conn.close();
+      System.out.println("Connection with Database has been terminated.");
+
+    } catch (SQLException throwables) {
+      throwables.printStackTrace();
+    }
   }
   //TODO
   public String deleteCus(int customerID) {
