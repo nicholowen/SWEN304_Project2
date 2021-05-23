@@ -130,6 +130,11 @@ public class LibraryModel {
 
   //TODO
   public String showLoanedBooks() {
+
+
+
+
+
     return "Show Loaned Books Stub";
   }
 
@@ -221,10 +226,34 @@ public class LibraryModel {
   public String showCustomer(int customerID) {
 
     //unsure if this is correct. No books have been loaned yet to check.
-    String lookup = "SELECT c.customerid, c.l_name, c.f_name, c.city, cd.count " +
-                    "FROM customer AS c, (SELECT count(customerid) AS count " +
-                                         "FROM cust_book AS cb) AS cd;";
+    String lookup = "SELECT DISTINCT c.customerid, c.l_name, c.f_name, c.city, cd.borrowed_items " +
+            "FROM customer AS c, (SELECT customerid, count(customerid) AS borrowed_items" +
+            "FROM cust_book AS cb" +
+            "GROUP BY customerid) AS cd, cust_book AS cb" +
+            "LEFT JOIN book AS b ON cb.isbn = b.isbn" +
+            "WHERE cb.customerid = c.customerid AND c.customer = " + customerID + ";";
 
+    StringBuilder sb = new StringBuilder();
+    sb.append("Show Customer: \n");
+    try {
+
+      String bookTitle = "";
+      int numBooksBorrowed = 0;
+      int count = 0;
+
+      Statement stmt = conn.createStatement();
+      ResultSet rs = stmt.executeQuery(lookup);
+      while (rs.next()){
+        sb.append(rs.getString("customerid")).append(": ");
+        sb.append(rs.getString("l_name").trim()).append(", ");
+        sb.append(rs.getString("f_name").trim()).append(" - ");
+        sb.append(rs.getString("city").trim()).append("\n");
+
+      }
+
+    } catch (SQLException throwables) {
+      throwables.printStackTrace();
+    }
 
     return "Show Customer Stub";
   }
@@ -296,14 +325,13 @@ public class LibraryModel {
 
       conn.setAutoCommit(false);
       pInsert.executeUpdate();
-      stmt.executeUpdate(update);
+      if(stmt.executeUpdate(update) == 0) return "No entry found.";
 
       conn.commit();
 
     } catch (SQLException throwables) {
       throwables.printStackTrace();
     }
-
 
     sb.append("Borrow Book\n");
     sb.append("\tBook: ").append(isbn).append(" (").append(bookTitle).append(")\n");
@@ -316,8 +344,38 @@ public class LibraryModel {
   //TODO
   public String returnBook(int isbn, int customerid) {
 
+    //check the cust_book table to see if the isbn and customer id match
+    //if it does, then remove the entry.
+    //increment 1 to numleft in book table
 
-    return "Return Book Stub";
+    StringBuilder sb = new StringBuilder();
+
+    String delete = "DELETE FROM cust_book " +
+            "WHERE isbn = " + isbn + " AND  customerid = " + customerid + ";";
+    String update = "UPDATE book SET numleft = numleft + 1 " +
+            "WHERE isbn = " + isbn + ";";
+
+    try {
+      Statement stmt = conn.createStatement();
+
+      conn.setAutoCommit(false);
+      JDialog d = new JDialog();
+      d.setModal(true);
+      d.setVisible(true);
+      if(stmt.executeUpdate(delete) == 0) return "Entry not found.";
+      stmt.executeUpdate(update);
+
+      conn.commit();
+      conn.setAutoCommit(true);
+
+    } catch (SQLException throwables) {
+      throwables.printStackTrace();
+    }
+
+    sb.append("Return Book:\n");
+    sb.append("\tBook ").append(isbn).append(" returned for Customer ").append(customerid);
+
+    return sb.toString();
   }
   //TODO
   public void closeDBConnection() {
@@ -329,6 +387,11 @@ public class LibraryModel {
       throwables.printStackTrace();
     }
   }
+
+
+  /**
+   * DO THE REST WHEN YOU HAVE CONFIRMED THE ABOVE CODE IS COMPLETE
+   */
   //TODO
   public String deleteCus(int customerID) {
     return "Delete Customer";

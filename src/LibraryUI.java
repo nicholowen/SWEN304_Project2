@@ -34,6 +34,7 @@ public class LibraryUI extends JFrame {
   private Action clearTextAction;
   private Action borrowAction;
   private Action returnAction;
+  private Action updateDeleteAction;
 
   // The main output area
   private JTextArea outputArea;
@@ -100,6 +101,7 @@ public class LibraryUI extends JFrame {
     clearTextAction = new ClearTextAction();
     borrowAction = new BorrowAction();
     returnAction = new ReturnAction();
+    updateDeleteAction = new UpdateOrDeleteAction();
 
     addWindowListener(new WindowAdapter() {
       public void windowClosing(WindowEvent evt) {
@@ -302,6 +304,8 @@ public class LibraryUI extends JFrame {
     InputMap input = pane.getInputMap(WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
     input.put(getKeyStroke("ENTER"), "borrowAction");
     pane.getActionMap().put("borrowAction", borrowAction);
+    pane.getActionMap().put("updateAction", updateDeleteAction);
+
 
     return pane;
   }
@@ -429,6 +433,17 @@ public class LibraryUI extends JFrame {
               "The values entered for ISBN or customer ID do not have a numeric format. Please try again.",
               "Format Error", ERROR_MESSAGE);
       }
+    }
+  }
+
+  private class UpdateOrDeleteAction extends CatchAction {
+    public UpdateOrDeleteAction(){
+      super("UpdateDelete");
+    }
+    public void doAction() {
+      showMessageDialog(dialogParent,
+              "Tuples are locked and are ready for update. Click okay to continue.",
+              "Pausing", JOptionPane.INFORMATION_MESSAGE);
     }
   }
 
