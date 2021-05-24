@@ -324,6 +324,7 @@ public class LibraryModel {
       }
 
       conn.setAutoCommit(false);
+      showDialog();
       pInsert.executeUpdate();
       if(stmt.executeUpdate(update) == 0) return "No entry found.";
 
@@ -359,9 +360,8 @@ public class LibraryModel {
       Statement stmt = conn.createStatement();
 
       conn.setAutoCommit(false);
-      JDialog d = new JDialog();
-      d.setModal(true);
-      d.setVisible(true);
+      //shows dialog message to pause.
+      showDialog();
       if(stmt.executeUpdate(delete) == 0) return "Entry not found.";
       stmt.executeUpdate(update);
 
@@ -394,7 +394,10 @@ public class LibraryModel {
    */
   //TODO
   public String deleteCus(int customerID) {
-    return "Delete Customer";
+    String delete = "DELETE FROM customer" +
+            "WHERE customerid = " + customerID;
+
+    return "Deleted customer";
   }
   //TODO
   public String deleteAuthor(int authorID) {
@@ -403,6 +406,12 @@ public class LibraryModel {
   //TODO
   public String deleteBook(int isbn) {
     return "Delete Book";
+  }
+
+  public void showDialog(){
+    JOptionPane.showMessageDialog(LibraryUI.getFrames()[0],
+            "Tuples have been locked, click OK to continue.",
+            "Pausing", JOptionPane.PLAIN_MESSAGE);
   }
 }
 
