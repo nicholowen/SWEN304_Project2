@@ -69,7 +69,7 @@ public class LibraryModel {
     }
     sb.append("\t" + isbn + ": ").append(title);
     sb.append("\n\tEdition: ").append(edition);
-    sb.append(" - Number of Copies: ").append(copies_remaining + " - Copies Left: " + copies_total + "\n");
+    sb.append(" - Number of Copies: ").append(copies_total + " - Copies Left: " + copies_remaining + "\n");
     if(authors.isEmpty()) sb.append("\t(no authors)");
     else {
       sb.append((authors.size() > 1) ? "\tAuthors: " : "\tAuthor: ");
@@ -115,7 +115,7 @@ public class LibraryModel {
         sb.append("Book Lookup:\n");
         sb.append("\t" + isbn + ": ").append(title);
         sb.append("\n\tEdition: ").append(edition);
-        sb.append(" - Number of Copies: ").append(copies_remaining + " - Copies Left: " + copies_total + "\n");
+        sb.append(" - Number of Copies: ").append(copies_total + " - Copies Left: " + copies_remaining + "\n");
         if(author.equals("")) sb.append("\t(no authors)");
         else sb.append((author.contains(",")) ? "\tAuthors: " : "\tAuthor: ");
         sb.append(author + "\n");
@@ -131,8 +131,37 @@ public class LibraryModel {
   //TODO
   public String showLoanedBooks() {
 
+    String lookup =
+   "SELECT b.ISBN, b.Title, string_agg(a.Surname, ', ') AS Surname, b.Edition_No, b.NumOfCop, b.NumLeft, c.f_name, c.L_name, c.city" +
+   "FROM Book AS b" +
+   "LEFT JOIN Book_Author AS ba ON b.ISBN = ba.ISBN" +
+   "LEFT JOIN Author AS a ON a.AuthorID = ba.AuthorID" +
+   "LEFT JOIN Cust_Book AS cb ON b.ISBN = cb.ISBN" +
+   "LEFT JOIN Customer AS c ON cb.CustomerID = c.CustomerID" +
+   "GROUP BY b.ISBN, b.Title, b.Edition_No, b.NumOfCop, b.NumLeft, c.f_name, c.L_name, c.city" +
+   "ORDER BY b.isbn;";
 
 
+
+    ArrayList<String> customers = new ArrayList<>();
+
+    try {
+      conn.setAutoCommit(false);
+      Statement stmt = conn.createStatement();
+      ResultSet rs = stmt.executeQuery(lookup);
+
+      while(rs.next()){
+
+
+
+      }
+
+
+
+      conn.setAutoCommit(true);
+    } catch (SQLException throwables) {
+      throwables.printStackTrace();
+    }
 
 
     return "Show Loaned Books Stub";
@@ -299,13 +328,15 @@ public class LibraryModel {
                     "VALUES (?, ?, ?);";
     String update = "UPDATE book SET numleft = numleft - 1 " +
                     "WHERE isbn = " + isbn + ";";
-    String bookQuery = "Select * FROM book WHERE isbn = " + isbn + ";";
-    String custQuery = "Select * FROM customer WHERE customerid = " + customerID + ";";
+    String bookQuery = "Select * FROM book WHERE isbn = " + isbn + " FOR  UPDATE;";
+    String custQuery = "Select * FROM customer WHERE customerid = " + customerID + " FOR UPDATE;";
 
     String bookTitle = "";
     String custName = "";
+    int books_left = 0;
 
     try {
+      conn.setAutoCommit(false);
 
       PreparedStatement pInsert = conn.prepareStatement(insert);
 
@@ -316,28 +347,38 @@ public class LibraryModel {
       Statement stmt = conn.createStatement();
       ResultSet rs1 = stmt.executeQuery(bookQuery);
       while(rs1.next()){
-        bookTitle = rs1.getString("title").trim();
+        if(rs1.getString("title") != null) bookTitle = rs1.getString("title").trim();
+        books_left = rs1.getInt("numLeft");
       }
       ResultSet rs2 = stmt.executeQuery(custQuery);
       while(rs2.next()){
-        custName = rs2.getString("f_name").trim() + " " + rs2.getString("l_name").trim();
+        if(rs2.getString("f_name") != null && rs2.getString("l_name") != null) {
+          custName = rs2.getString("f_name").trim() + " " + rs2.getString("l_name").trim();
+        }
       }
 
-      conn.setAutoCommit(false);
-      showDialog();
-      pInsert.executeUpdate();
-      if(stmt.executeUpdate(update) == 0) return "No entry found.";
+      if(!bookTitle.equals("") && !custName.equals("") && books_left > 0) {
+        showDialog();
+        pInsert.executeUpdate();
+        if (stmt.executeUpdate(update) == 0) return "No entry found.";
 
-      conn.commit();
+        conn.commit();
+        conn.setAutoCommit(true);
+      }
 
     } catch (SQLException throwables) {
       throwables.printStackTrace();
     }
 
-    sb.append("Borrow Book\n");
-    sb.append("\tBook: ").append(isbn).append(" (").append(bookTitle).append(")\n");
-    sb.append("\tLoaned to: ").append(customerID).append(" (").append(custName).append(")\n");
-    sb.append("\tDue Date: ").append(day + " " + month + " " + year);
+    if(bookTitle.equals("") && custName.equals("")) {
+      sb.append("Borrow Book\n");
+      sb.append("\tBook: ").append(isbn).append(" (").append(bookTitle).append(")\n");
+      sb.append("\tLoaned to: ").append(customerID).append(" (").append(custName).append(")\n");
+      sb.append("\tDue Date: ").append(day + " " + month + " " + year);
+    }else{
+      sb.append("Error encountered - Either Customer or ISBN does not exist.");
+    }
+
 
     return sb.toString();
   }
@@ -351,21 +392,38 @@ public class LibraryModel {
 
     StringBuilder sb = new StringBuilder();
 
-    String delete = "DELETE FROM cust_book " +
-            "WHERE isbn = " + isbn + " AND  customerid = " + customerid + ";";
-    String update = "UPDATE book SET numleft = numleft + 1 " +
-            "WHERE isbn = " + isbn + ";";
+    String checkCustomer = "SELECT * FROM cust_book WHERE isbn = " + isbn + " AND  customerid = " + customerid + " FOR UPDATE;";
+    String checkBook = "SELECT * FROM book WHERE isbn = " + isbn + " FOR UPDATE;";
+
+    String delete = "DELETE FROM cust_book WHERE isbn = " + isbn + " AND  customerid = " + customerid + ";";
+    String update = "UPDATE book SET numleft = numleft + 1 WHERE isbn = " + isbn + ";";
+
+    int cust_id = 0;
+    int cust_isbn = 0;
+    int book_isbn = 0;
 
     try {
-      Statement stmt = conn.createStatement();
-
       conn.setAutoCommit(false);
-      //shows dialog message to pause.
-      showDialog();
-      if(stmt.executeUpdate(delete) == 0) return "Entry not found.";
-      stmt.executeUpdate(update);
 
-      conn.commit();
+      Statement stmt = conn.createStatement();
+      ResultSet rs = stmt.executeQuery(checkCustomer);
+      while(rs.next()){
+        cust_id = rs.getInt("customerid");
+        cust_isbn = rs.getInt("isbn");
+      }
+      rs = stmt.executeQuery(checkBook);
+      while(rs.next()){
+        book_isbn = rs.getInt(isbn);
+      }
+
+      if(cust_id != 0 && cust_isbn != 0 && book_isbn != 0) {
+        //shows dialog message to pause.
+        showDialog();
+        if (stmt.executeUpdate(delete) == 0) return "Entry not found.";
+        stmt.executeUpdate(update);
+
+        conn.commit();
+      }
       conn.setAutoCommit(true);
 
     } catch (SQLException throwables) {
